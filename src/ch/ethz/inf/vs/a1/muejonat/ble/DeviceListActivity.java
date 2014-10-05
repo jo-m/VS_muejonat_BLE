@@ -8,14 +8,7 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.view.Menu;
 import android.view.MenuItem;
-import android.view.View;
-import android.view.ViewGroup.LayoutParams;
-import android.view.ViewTreeObserver;
-import android.view.ViewTreeObserver.OnGlobalLayoutListener;
-import android.widget.FrameLayout;
 import android.widget.Toast;
-
-import com.android.mail.ui.ButteryProgressBar;
 
 /**
  * An activity representing a list of Devices. This activity has different
@@ -32,7 +25,7 @@ import com.android.mail.ui.ButteryProgressBar;
  * This activity also implements the required
  * {@link DeviceListFragment.Callbacks} interface to listen for item selections.
  */
-public class DeviceListActivity extends Activity implements
+public class DeviceListActivity extends ProgressbarActivity implements
 		DeviceListFragment.Callbacks {
 	
 	private DeviceListFragment mDeviceListFragment;
@@ -68,8 +61,6 @@ public class DeviceListActivity extends Activity implements
 		FragmentManager fm = getFragmentManager();
 		mDeviceListFragment = ((DeviceListFragment)fm.findFragmentByTag(LIST_FRAGMENT_TAG));
 		
-		setupProgressBar();
-		
 		mDeviceListFragment.startScanning();
 	}
 
@@ -97,46 +88,6 @@ public class DeviceListActivity extends Activity implements
 			startActivity(detailIntent);
 		}
 	}
-	
-	private ButteryProgressBar mProgress;
-	
-	public void showProgress() {
-		mProgress.setVisibility(View.VISIBLE);
-	}
-	
-	public void hideProgress() {
-		mProgress.setVisibility(View.INVISIBLE);
-	}
-	
-	private void setupProgressBar() {
-        // create new ProgressBar and style it
-        mProgress = new ButteryProgressBar(this);
-        mProgress.setLayoutParams(new LayoutParams(LayoutParams.MATCH_PARENT, 24));
-        mProgress.setVisibility(View.INVISIBLE);
-
-        // retrieve the top view of our application
-        final FrameLayout decorView = (FrameLayout) getWindow().getDecorView();
-        decorView.addView(mProgress);
-
-        // Here we try to position the ProgressBar to the correct position by looking
-        // at the position where content area starts. But during creating time, sizes 
-        // of the components are not set yet, so we have to wait until the components
-        // has been laid out
-        // Also note that doing progressBar.setY(136) will not work, because of different
-        // screen densities and different sizes of actionBar
-        ViewTreeObserver observer = mProgress.getViewTreeObserver();
-        observer.addOnGlobalLayoutListener(new OnGlobalLayoutListener() {
-            @SuppressWarnings("deprecation")
-            @Override
-            public void onGlobalLayout() {
-                View contentView = decorView.findViewById(android.R.id.content);
-                mProgress.setY(contentView.getY() - 10);
-
-                ViewTreeObserver observer = mProgress.getViewTreeObserver();
-                observer.removeGlobalOnLayoutListener(this);
-            }
-        });
-    }
 	
 	@Override
     public boolean onCreateOptionsMenu(Menu menu) {

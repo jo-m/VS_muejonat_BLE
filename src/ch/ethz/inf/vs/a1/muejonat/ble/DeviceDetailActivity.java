@@ -15,7 +15,7 @@ import android.widget.Toast;
  * This activity is mostly just a 'shell' activity containing nothing more than
  * a {@link DeviceDetailFragment}.
  */
-public class DeviceDetailActivity extends Activity {
+public class DeviceDetailActivity extends ProgressbarActivity {
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
