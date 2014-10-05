@@ -35,7 +35,7 @@ public class DeviceListFragment extends ListFragment {
     
     private static final long SCAN_PERIOD_MS = 10 * 1000;
     static final int REQUEST_ENABLE_BT = 3;
-	private DeviceListActivity mActivity;
+	private ProgressbarActivity mActivity;
 	
 	/**
 	 * The serialization (saved instance state) Bundle key representing the
@@ -87,7 +87,7 @@ public class DeviceListFragment extends ListFragment {
 	public void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		
-		mActivity = (DeviceListActivity)getActivity();
+		mActivity = (ProgressbarActivity)getActivity();
 
 		if (!mActivity.getPackageManager().hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE)) {
             Toast.makeText(mActivity, "BLE not supported!", Toast.LENGTH_SHORT).show();
@@ -132,6 +132,10 @@ public class DeviceListFragment extends ListFragment {
         mBluetoothAdapter.stopLeScan(mLeScanCallback);
         
         mActivity.hideProgress();
+        
+        if(mLeDeviceListAdapter.getCount() == 0) {
+        	Toast.makeText(mActivity, "No devices found.", Toast.LENGTH_SHORT).show();
+        }
     }
     
     synchronized void startScanning() {
