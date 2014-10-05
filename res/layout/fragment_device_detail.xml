@@ -39,4 +39,26 @@
         android:layout_alignRight="@+id/device_detail_connection"
         android:text="Service" />
 
+    <TextView
+        android:id="@+id/device_detail_temp"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentLeft="true"
+        android:layout_below="@+id/device_detail_address"
+        android:padding="16dp"
+        android:layout_marginTop="16dp"
+        android:text="Temp"
+        android:textSize="50sp" />
+    
+    <TextView
+        android:id="@+id/device_detail_rh"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentLeft="true"
+        android:layout_below="@+id/device_detail_temp"
+        android:padding="16dp"
+        android:layout_marginTop="16dp"
+        android:text="RH"
+        android:textSize="50sp" />
+
 </RelativeLayout>

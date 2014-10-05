@@ -12,8 +12,8 @@ import android.bluetooth.BluetoothGattService;
 import android.bluetooth.BluetoothManager;
 import android.bluetooth.BluetoothProfile;
 import android.content.Context;
+import android.os.AsyncTask;
 import android.os.Bundle;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -41,8 +41,13 @@ public class DeviceDetailFragment extends Fragment {
     private BluetoothGattService mService;
     private BluetoothGattCharacteristic mCharacteristic;
     
+    private float temp_deg_c = 0;
+    private float hum_rh_perc = 0;
+    
     private final UUID RH_T_UUID = UUID.fromString("0000AA20-0000-1000-8000-00805f9b34fb");
     private final UUID RH_T_CHAR_UUID = UUID.fromString("0000AA21-0000-1000-8000-00805f9b34fb");
+    
+    private final long CYCLE_SLEEP = 3000;
     
     enum SERVICE_STATUS {
     	NONE, DISCOVERING, FINISHED;
@@ -111,6 +116,7 @@ public class DeviceDetailFragment extends Fragment {
 				mServicesStatus = SERVICE_STATUS.DISCOVERING;
 			} else {
 				mConnectionState = CONNECTION_STATUS.DISCONNECTED;
+				mServicesStatus = SERVICE_STATUS.NONE;
 			}
 			updateViews();
 		}
@@ -127,9 +133,9 @@ public class DeviceDetailFragment extends Fragment {
                 BluetoothGattCharacteristic characteristic,
                 int status) {
 			if(status == BluetoothGatt.GATT_SUCCESS) {
-				displayTemperature(mCharacteristic.getValue());
-			} else {
-				makeToast("Failed to read temperature.");
+				temp_deg_c = (float)mCharacteristic.getIntValue(BluetoothGattCharacteristic.FORMAT_SINT16, 0) / 100;
+				hum_rh_perc = (float)mCharacteristic.getIntValue(BluetoothGattCharacteristic.FORMAT_UINT16, 2) / 100;
+				updateViews();
 			}
         }
 	};
@@ -156,13 +162,26 @@ public class DeviceDetailFragment extends Fragment {
             	disconnect();
             	close();
         	} else {
-        		mBluetoothGatt.readCharacteristic(mCharacteristic);
+        		new TemperatureReadClass().execute();
         	}
         }
 	}
 	
-	private void displayTemperature(byte[] values) {
-		Log.d("AAAAAAAAAAAAAAAAAAAAA", values.toString());
+	private TemperatureReadClass mUpdater;
+	
+	private class TemperatureReadClass extends AsyncTask<Void, Void, Void> {
+		@Override
+		protected Void doInBackground(Void... params) {
+			while(!isCancelled() && mBluetoothGatt != null) {
+				mBluetoothGatt.readCharacteristic(mCharacteristic);
+				try {
+					Thread.sleep(CYCLE_SLEEP);
+				} catch (InterruptedException e) {}
+				if(mConnectionState != CONNECTION_STATUS.CONNECTED)
+					cancel(false);
+			}
+			return null;
+		}
 	}
 
 	private void updateViews() {
@@ -176,19 +195,31 @@ public class DeviceDetailFragment extends Fragment {
 				TextView name = ((TextView)getView().findViewById(R.id.device_detail_name));
 				name.setText(mDevice.getName());
 				
+				TextView temp = (TextView)getView().findViewById(R.id.device_detail_temp);
+				temp.setText(temp_deg_c + " ¡C");
+				
+				TextView rh = (TextView)getView().findViewById(R.id.device_detail_rh);
+				rh.setText(hum_rh_perc + " %");
+				
 				TextView connStatus = (TextView)getView().findViewById(R.id.device_detail_connection);
 				switch(mConnectionState) {
 				case CONNECTED:
 					mActivity.hideProgress();
 					connStatus.setText("Connected");
+					rh.setVisibility(View.VISIBLE);
+					temp.setVisibility(View.VISIBLE);
 					break;
 				case CONNECTING:
 					mActivity.showProgress();
 					connStatus.setText("Connecting...");
+					rh.setVisibility(View.INVISIBLE);
+					temp.setVisibility(View.INVISIBLE);
 					break;
 				case DISCONNECTED:
 					mActivity.hideProgress();
 					connStatus.setText("Disconnected");
+					rh.setVisibility(View.INVISIBLE);
+					temp.setVisibility(View.INVISIBLE);
 					break;
 				}
 				
@@ -217,6 +248,9 @@ public class DeviceDetailFragment extends Fragment {
     }
 
     public void close() {
+    	if(mUpdater != null && mUpdater.isCancelled() == false) {
+    		mUpdater.cancel(false);
+    	}
         if (mBluetoothGatt == null) {
             return;
         }
