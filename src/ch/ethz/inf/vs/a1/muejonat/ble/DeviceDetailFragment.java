@@ -1,11 +1,14 @@
 package ch.ethz.inf.vs.a1.muejonat.ble;
 
+import java.util.UUID;
+
 import android.app.Fragment;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCallback;
 import android.bluetooth.BluetoothGattCharacteristic;
+import android.bluetooth.BluetoothGattService;
 import android.bluetooth.BluetoothManager;
 import android.bluetooth.BluetoothProfile;
 import android.content.Context;
@@ -32,11 +35,23 @@ public class DeviceDetailFragment extends Fragment {
     private BluetoothManager mBluetoothManager;
     private BluetoothAdapter mBluetoothAdapter;
     private BluetoothGatt mBluetoothGatt;
-    private int mConnectionState = STATE_DISCONNECTED;
+    private CONNECTION_STATUS mConnectionState = CONNECTION_STATUS.DISCONNECTED;
+    private SERVICE_STATUS mServicesStatus = SERVICE_STATUS.NONE;
+    
+    private BluetoothGattService mService;
+    private BluetoothGattCharacteristic mCharacteristic;
+    
+    private final UUID RH_T_UUID = UUID.fromString("0000AA20-0000-1000-8000-00805f9b34fb");
+    private final UUID RH_T_CHAR_UUID = UUID.fromString("0000AA21-0000-1000-8000-00805f9b34fb");
+    
+    enum SERVICE_STATUS {
+    	NONE, DISCOVERING, FINISHED;
+    }
 
-    private static final int STATE_DISCONNECTED = 0;
-    private static final int STATE_CONNECTING = 1;
-    private static final int STATE_CONNECTED = 2;
+    enum CONNECTION_STATUS {
+    	DISCONNECTED, CONNECTING, CONNECTED
+    }
+    
 
 	public DeviceDetailFragment() {
 	}
@@ -69,7 +84,7 @@ public class DeviceDetailFragment extends Fragment {
         }
         
         mBluetoothGatt = mDevice.connectGatt(mActivity, false, mBluetoothCallback);
-        mConnectionState = STATE_CONNECTING;
+        mConnectionState = CONNECTION_STATUS.CONNECTING;
 	}
 
 	@Override
@@ -91,28 +106,65 @@ public class DeviceDetailFragment extends Fragment {
         public void onConnectionStateChange(BluetoothGatt gatt, int status,
                 int newState) {
 			if(newState == BluetoothProfile.STATE_CONNECTED) {
-				mConnectionState = STATE_CONNECTED;
+				mConnectionState = CONNECTION_STATUS.CONNECTED;
+				mBluetoothGatt.discoverServices();
+				mServicesStatus = SERVICE_STATUS.DISCOVERING;
 			} else {
-				mConnectionState = STATE_DISCONNECTED;
+				mConnectionState = CONNECTION_STATUS.DISCONNECTED;
 			}
 			updateViews();
 		}
 		
 		@Override
-        // New services discovered
         public void onServicesDiscovered(BluetoothGatt gatt, int status) {
-            
+            mServicesStatus = SERVICE_STATUS.FINISHED;
+            getServiceAndCharacteristic();
+            updateViews();
         }
 
 		@Override
-        // Result of a characteristic read operation
         public void onCharacteristicRead(BluetoothGatt gatt,
                 BluetoothGattCharacteristic characteristic,
                 int status) {
+			if(status == BluetoothGatt.GATT_SUCCESS) {
+				displayTemperature(mCharacteristic.getValue());
+			} else {
+				makeToast("Failed to read temperature.");
+			}
         }
-
 	};
 	
+	private void getServiceAndCharacteristic() {
+		mService = mBluetoothGatt.getService(RH_T_UUID);
+        if(mService == null) {
+        	makeToast("This device does not have a RH&T service.");
+        	disconnect();
+        	close();
+        } else {
+        	// set the READ perimission on the characteristic
+        	BluetoothGattCharacteristic rht = new BluetoothGattCharacteristic(
+        			  RH_T_CHAR_UUID,
+        	          BluetoothGattCharacteristic.PROPERTY_READ
+        	                 | BluetoothGattCharacteristic.PROPERTY_NOTIFY,
+        	          BluetoothGattCharacteristic.PERMISSION_READ);
+        	// add the characteristic to the discovered RH&T service
+        	mService.addCharacteristic(rht);
+        	
+        	mCharacteristic = mService.getCharacteristic(RH_T_CHAR_UUID);
+        	if(mCharacteristic == null) {
+        		makeToast("This device does not have a RH&T characteristic.");
+            	disconnect();
+            	close();
+        	} else {
+        		mBluetoothGatt.readCharacteristic(mCharacteristic);
+        	}
+        }
+	}
+	
+	private void displayTemperature(byte[] values) {
+		Log.d("AAAAAAAAAAAAAAAAAAAAA", values.toString());
+	}
+
 	private void updateViews() {
 		mActivity.runOnUiThread(new Runnable() {
 			@Override
@@ -124,19 +176,32 @@ public class DeviceDetailFragment extends Fragment {
 				TextView name = ((TextView)getView().findViewById(R.id.device_detail_name));
 				name.setText(mDevice.getName());
 				
-				TextView connStatus = ((TextView)getView().findViewById(R.id.device_detail_connection));
+				TextView connStatus = (TextView)getView().findViewById(R.id.device_detail_connection);
 				switch(mConnectionState) {
-				case STATE_CONNECTED:
+				case CONNECTED:
 					mActivity.hideProgress();
 					connStatus.setText("Connected");
 					break;
-				case STATE_CONNECTING:
+				case CONNECTING:
 					mActivity.showProgress();
 					connStatus.setText("Connecting...");
 					break;
-				case STATE_DISCONNECTED:
+				case DISCONNECTED:
 					mActivity.hideProgress();
 					connStatus.setText("Disconnected");
+					break;
+				}
+				
+				TextView serviceStatus = (TextView)getView().findViewById(R.id.device_detail_service);
+				switch(mServicesStatus) {
+				case NONE:
+					serviceStatus.setText("");
+					break;
+				case DISCOVERING:
+					serviceStatus.setText("Searching for services...");
+					break;
+				case FINISHED:
+					serviceStatus.setText(mBluetoothGatt.getServices().size() + " Services found.");
 					break;
 				}
 			}
@@ -164,5 +229,14 @@ public class DeviceDetailFragment extends Fragment {
     	disconnect();
     	close();
     	super.onDestroy();
+    }
+    
+    private void makeToast(final String text) {
+    	mActivity.runOnUiThread(new Runnable() {
+			@Override
+			public void run() {
+				Toast.makeText(mActivity, text, Toast.LENGTH_SHORT).show();
+			}
+    	});
     }
 }
