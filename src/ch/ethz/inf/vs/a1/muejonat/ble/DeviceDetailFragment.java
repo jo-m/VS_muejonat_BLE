@@ -232,7 +232,11 @@ public class DeviceDetailFragment extends Fragment {
 					serviceStatus.setText("Searching for services...");
 					break;
 				case FINISHED:
-					serviceStatus.setText(mBluetoothGatt.getServices().size() + " Services found.");
+					String num = "No";
+					if(mBluetoothGatt != null && mBluetoothGatt.getServices() != null) {
+						num = "" + mBluetoothGatt.getServices().size();
+					}
+					serviceStatus.setText(num + " Services found.");
 					break;
 				}
 			}
