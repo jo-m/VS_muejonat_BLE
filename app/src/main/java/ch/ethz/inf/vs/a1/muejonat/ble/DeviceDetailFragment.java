@@ -196,7 +196,7 @@ public class DeviceDetailFragment extends Fragment {
 				name.setText(mDevice.getName());
 				
 				TextView temp = (TextView)getView().findViewById(R.id.device_detail_temp);
-				temp.setText(temp_deg_c + " ¡C");
+				temp.setText(temp_deg_c + " Â°C");
 				
 				TextView rh = (TextView)getView().findViewById(R.id.device_detail_rh);
 				rh.setText(hum_rh_perc + " %");
